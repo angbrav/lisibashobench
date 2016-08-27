@@ -34,7 +34,9 @@
                 clock,
                 pb_port,
                 target_node,
-                nodes}).
+                nodes,
+                key_per_read_tx,
+                key_per_update_tx}).
 
 %% ====================================================================
 %% API
@@ -53,6 +55,8 @@ new(Id) ->
     Nodes   = basho_bench_config:get(antidote_nodes),
     Cookie  = basho_bench_config:get(antidote_cookie),
     MyNode  = basho_bench_config:get(antidote_mynode, [basho_bench, longnames]),
+    KeyPerReadTx  = basho_bench_config:get(key_per_read_tx),
+    KeyPerUpdateTx  = basho_bench_config:get(key_per_update_tx),
 
     %% Try to spin up net_kernel
     case net_kernel:start(MyNode) of
@@ -75,19 +79,30 @@ new(Id) ->
     {A1,A2,A3} = now(),
     random:seed(A1, A2, A3), 
 
-    {ok, #state{nodes=Nodes, worker_id=Id}}.
+    {ok, #state{nodes=Nodes, worker_id=Id, key_per_read_tx=KeyPerReadTx, key_per_update_tx=KeyPerUpdateTx}}.
 
-run(read_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes}) ->
-    Key = KeyGen(),
-
-    Node = lists:nth((Key rem length(Nodes)+1), Nodes),
+run(read_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per_read_tx=KeyPerReadTx}) ->
+    Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
     
-    Response = rpc:call(Node, antidote, execute_tx, [[{read, Key}]]),
+    L = sets:to_list(lists:foldl(fun(_, Set) ->
+                    sets:add_element(KeyGen()+1, Set)
+                end, sets:new(), lists:seq(1, KeyPerReadTx))),
+    Reads = [{read, Key} || Key <- L],
+    
+    Response = rpc:call(Node, antidote, execute_tx, [Reads]),
     case Response of
         {ok, {_, CausalClock}} ->
+            lager:info("Read_Success"),
             {ok, State};
-        {ok, {_, _, CausalClock}} ->
-            {ok, State};
+        {ok, {_, ReadSet, CausalClock}} ->
+            case read_freshness(ReadSet) of
+                0 -> 
+                    lager:info("Read Success"),
+                    {ok, State};
+                F ->
+                    lager:error("Not the most recent data. Number of not fresh operation: ~p",[F]),
+                    {error, "Not the most recent data.", State}
+            end;
         {error,timeout} ->
             lager:info("Timeout on client ~p",[Id]),
             {error, timeout, State};            
@@ -98,10 +113,14 @@ run(read_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes}) ->
             {error, Reason, State}
     end;
 
-run(update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes}) ->
+run(update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per_update_tx=KeyPerUpdateTx}) ->
     Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
-    Updates = [{update, Key, increment, 1} || Key <- k_unique_numes(25, 1000)],
 
+    L = sets:to_list(lists:foldl(fun(_, Set) ->
+                 sets:add_element(KeyGen()+1, Set)
+                end, sets:new(), lists:seq(1, KeyPerUpdateTx))),
+    Updates = [{update, Key, increment, 1} || Key <- L],
+    
     Response = rpc:call(Node, antidote, execute_tx, [Updates]),
 
     case Response of
@@ -123,19 +142,27 @@ run(update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes}) ->
             {error, Reason, State}
     end.
 
-k_unique_numes(Num, Range) ->
-    Seq = lists:seq(1, Num),
-    S = lists:foldl(fun(_, Set) ->
-                N = uninum(Range, Set),
-                 sets:add_element(N, Set)
-                end, sets:new(), Seq),
-    sets:to_list(S).
+read_freshness([H|T]) ->
+    read_freshness_rec(T,H,0).
 
-uninum(Range, Set) ->
-    R = random:uniform(Range),
-    case sets:is_element(R, Set) of
-        true ->
-            uninum(Range, Set);
-        false ->
-            R
-    end.
+read_freshness_rec([], {X, Y}, F) when X /= Y ->
+    F0 = F + 1,
+    print(X,Y),
+    F0;
+read_freshness_rec([], _, F) ->
+    F;
+read_freshness_rec([H|T], {X, Y}, F) when X /= Y ->
+    F0 = F + 1,
+    print(X,Y),
+    read_freshness_rec(T, H, F0);
+read_freshness_rec([H|T], _, F) ->
+    read_freshness_rec(T, H, F).
+
+print(X,Y) ->
+    case X of
+        nil ->
+            G = Y;
+        _ ->
+            G = Y-X
+    end,
+    lager:error("Not the most recent data. Expected ~p but was ~p. Gap: ~p",[Y, X, G]).

@@ -6,5 +6,5 @@ set -e
 ./script/changeAddressBasho.sh
 ./script/synchronizeClock.sh
 ./basho_bench examples/clocks.config
-cp ./script/config ./tests/current
+cp ./script/config.txt ./tests/current
 make results
