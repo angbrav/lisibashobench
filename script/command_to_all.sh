@@ -5,17 +5,18 @@ FAIL=0
 if [ $# -eq 1 ]
 then
     nodes=`cat ./script/allnodes`
-    command="$1"
+    command=$1
 else
     nodes=$1
     command=$2
 fi
-echo $command" for nodes:"$nodes 
+
 for node in $nodes
 do
-   ssh -o ConnectTimeout=10 -t ubuntu@$node -i key ${command/localhost/$node} 
+	echo "command: "$command" for node: "$node
+   	ssh -o ConnectTimeout=10 -t root@$node -i ~/.ssh/id_rsa ${command/localhost/$node} 
 done
-echo $command done
+echo "commands: "$command" done"
 
 for job in `jobs -p`
 do

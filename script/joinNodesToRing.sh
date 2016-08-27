@@ -9,15 +9,15 @@ then
 else
     First=$1
     Others=$2
-    echo "Joinig "$Others " to "$First
+    echo "Joining "$Others" to "$First
 fi
 
-Join="sudo antidote/rel/antidote/bin/antidote-admin cluster join antidote@$First"
-PlanAndCommit="sudo antidote/rel/antidote/bin/antidote-admin cluster plan && sudo antidote/rel/antidote/bin/antidote-admin cluster commit"
+Join="sudo li-si/rel/antidote/bin/antidote-admin cluster join antidote@$First"
+PlanAndCommit="sudo li-si/rel/antidote/bin/antidote-admin cluster plan && sudo li-si/rel/antidote/bin/antidote-admin cluster commit"
 for Node in $Others
 do
 ./script/command_to_all.sh "$Node" "$Join"
     sleep 2.5 
 done
+sleep 5
 ./script/command_to_all.sh "$First" "$PlanAndCommit"
-

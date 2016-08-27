@@ -7,8 +7,10 @@ else
     AllNodes=$1
     Cookie=$2
 fi
-	./script/stopNodes.sh "$AllNodes" 
+	./script/stopNodes.sh "$AllNodes"
 	./script/startNodes.sh "$AllNodes"
+
+	sleep 5
 
 	NodesList=($AllNodes)
 	Length=${#NodesList[@]}
