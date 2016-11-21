@@ -13,4 +13,3 @@ Command4="sudo echo {clock_type, $1}. >>$File2"
 ./script/parallel_command.sh "$Nodes" "$Command2"
 ./script/parallel_command.sh "$Nodes" "$Command3"
 ./script/parallel_command.sh "$Nodes" "$Command4"
-

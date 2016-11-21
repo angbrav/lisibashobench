@@ -36,7 +36,8 @@
                 target_node,
                 nodes,
                 key_per_read_tx,
-                key_per_update_tx}).
+                key_per_update_tx,
+                key_per_read_update_tx}).
 
 %% ====================================================================
 %% API
@@ -57,6 +58,7 @@ new(Id) ->
     MyNode  = basho_bench_config:get(antidote_mynode, [basho_bench, longnames]),
     KeyPerReadTx  = basho_bench_config:get(key_per_read_tx),
     KeyPerUpdateTx  = basho_bench_config:get(key_per_update_tx),
+    KeyPerReadUpdateTx  = basho_bench_config:get(key_per_read_update_tx),
 
     %% Try to spin up net_kernel
     case net_kernel:start(MyNode) of
@@ -79,7 +81,7 @@ new(Id) ->
     {A1,A2,A3} = now(),
     random:seed(A1, A2, A3), 
 
-    {ok, #state{nodes=Nodes, worker_id=Id, key_per_read_tx=KeyPerReadTx, key_per_update_tx=KeyPerUpdateTx}}.
+    {ok, #state{nodes=Nodes, worker_id=Id, key_per_read_tx=KeyPerReadTx, key_per_update_tx=KeyPerUpdateTx, key_per_read_update_tx=KeyPerReadUpdateTx}}.
 
 run(read_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per_read_tx=KeyPerReadTx}) ->
     Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
@@ -91,10 +93,10 @@ run(read_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per
     
     Response = rpc:call(Node, antidote, execute_tx, [Reads]),
     case Response of
-        {ok, {_, CausalClock}} ->
+        {ok, {_, _CausalClock}} ->
             lager:info("Read_Success"),
             {ok, State};
-        {ok, {_, ReadSet, CausalClock}} ->
+        {ok, {_, ReadSet, _CausalClock}} ->
             case read_freshness(ReadSet) of
                 0 -> 
                     lager:info("Read Success"),
@@ -124,10 +126,10 @@ run(update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_p
     Response = rpc:call(Node, antidote, execute_tx, [Updates]),
 
     case Response of
-        {ok, {_, CausalClock}} ->
+        {ok, {_, _CausalClock}} ->
             lager:info("Success"),
             {ok, State};
-        {ok, {_, _, CausalClock}} ->
+        {ok, {_, _, _CausalClock}} ->
             lager:info("Success"),
             {ok, State};
         {error,timeout} ->
@@ -140,6 +142,48 @@ run(update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_p
             {error, abort, State};
         {badrpc, Reason} ->
             {error, Reason, State}
+    end;
+
+run(read_update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per_read_update_tx=KeyPerReadUpdateTx}) ->
+    Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
+
+    L = sets:to_list(lists:foldl(fun(_, Set) ->
+            sets:add_element(KeyGen()+1, Set)
+         end, sets:new(), lists:seq(1, KeyPerReadUpdateTx))),
+
+    ReadUpdates = [get_operation(Key) || Key <- L],
+    %[lager:info("Operation: ~p", [Op]) || Op <- ReadUpdates],
+
+    Response = rpc:call(Node, antidote, execute_tx, [ReadUpdates]),
+    case Response of
+        {ok, {_, _CausalClock}} ->
+            lager:info("Read_Success"),
+            {ok, State};
+        {ok, {_, ReadSet, _CausalClock}} ->
+            case read_freshness(ReadSet) of
+                0 ->
+                    lager:info("Read Success"),
+                    {ok, State};
+                F ->
+                    lager:error("Not the most recent data. Number of not fresh operation: ~p",[F]),
+                    {error, "Not the most recent data.", State}
+            end;
+        {error,timeout} ->
+            lager:info("Timeout on client ~p",[Id]),
+            {error, timeout, State};
+        {error, Reason} ->
+            lager:error("Error: ~p",[Reason]),
+            {error, Reason, State};
+        {badrpc, Reason} ->
+            {error, Reason, State}
+    end.
+
+get_operation(Key) ->
+    case Key rem 2 of
+        0 ->
+            {read, Key};
+        1 ->
+            {update, Key, increment , 1}
     end.
 
 read_freshness([H|T]) ->

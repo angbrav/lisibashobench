@@ -27,5 +27,3 @@ else
     ./script/parallel_command.sh "$AllNodes" "$Command5"	
     ./script/parallel_command.sh "$AllNodes" "$Command6"	
 fi
-
-

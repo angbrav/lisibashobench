@@ -2,6 +2,8 @@
 set -u
 set -e
 
+# TBU: Refactor
+
 ./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
