@@ -2,8 +2,7 @@
 set -u
 set -e
 
-# TBU: Refactor
-
+./script/adaptConfigParameters.sh examples/clocks.config max 1 120 1 9 0 uniform_int 500000 5 5 0
 ./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
@@ -12,6 +11,7 @@ set -e
 cp ./script/config.txt ./tests/current
 make results
 
+./script/adaptConfigParameters.sh examples/clocks.config max 5 120 1 9 0 uniform_int 500000 5 5 0
 ./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
@@ -20,7 +20,9 @@ make results
 cp ./script/config.txt ./tests/current
 make results
 
-./script/changeConfig.sh 64 logical
+
+./script/adaptConfigParameters.sh examples/clocks.config max 7 120 1 9 0 uniform_int 500000 5 5 0
+./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
 ./script/synchronizeClock.sh
@@ -28,7 +30,8 @@ make results
 cp ./script/config.txt ./tests/current
 make results
 
-./script/changeConfig.sh 64 logical
+./script/adaptConfigParameters.sh examples/clocks.config max 10 120 1 9 0 uniform_int 500000 5 5 0
+./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
 ./script/synchronizeClock.sh
@@ -36,7 +39,8 @@ make results
 cp ./script/config.txt ./tests/current
 make results
 
-./script/changeConfig.sh 64 hybrid
+./script/adaptConfigParameters.sh examples/clocks.config max 25 120 1 9 0 uniform_int 500000 5 5 0
+./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
 ./script/synchronizeClock.sh
@@ -44,7 +48,9 @@ make results
 cp ./script/config.txt ./tests/current
 make results
 
-./script/changeConfig.sh 64 hybrid
+
+./script/adaptConfigParameters.sh examples/clocks.config max 50 120 1 9 0 uniform_int 500000 5 5 0
+./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
 ./script/synchronizeClock.sh
@@ -52,15 +58,9 @@ make results
 cp ./script/config.txt ./tests/current
 make results
 
-./script/changeConfig.sh 64 hybrid2
-./script/restartAndConnect.sh
-./script/changeAddressBasho.sh
-./script/synchronizeClock.sh
-./basho_bench examples/clocks.config
-cp ./script/config.txt ./tests/current
-make results
 
-./script/changeConfig.sh 64 hybrid2
+./script/adaptConfigParameters.sh examples/clocks.config max 100 120 1 9 0 uniform_int 500000 5 5 0
+./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
 ./script/synchronizeClock.sh
