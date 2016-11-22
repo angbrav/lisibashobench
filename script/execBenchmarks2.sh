@@ -11,6 +11,15 @@ set -e
 cp ./script/config.txt ./tests/current
 make results
 
+./script/adaptConfigParameters.sh examples/clocks.config max 3 120 1 9 0 uniform_int 500000 5 5 0
+./script/changeConfig.sh 64 physical
+./script/restartAndConnect.sh
+./script/changeAddressBasho.sh
+./script/synchronizeClock.sh
+./basho_bench examples/clocks.config
+cp ./script/config.txt ./tests/current
+make results
+
 ./script/adaptConfigParameters.sh examples/clocks.config max 5 120 1 9 0 uniform_int 500000 5 5 0
 ./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
@@ -31,6 +40,15 @@ cp ./script/config.txt ./tests/current
 make results
 
 ./script/adaptConfigParameters.sh examples/clocks.config max 10 120 1 9 0 uniform_int 500000 5 5 0
+./script/changeConfig.sh 64 physical
+./script/restartAndConnect.sh
+./script/changeAddressBasho.sh
+./script/synchronizeClock.sh
+./basho_bench examples/clocks.config
+cp ./script/config.txt ./tests/current
+make results
+
+./script/adaptConfigParameters.sh examples/clocks.config max 15 120 1 9 0 uniform_int 500000 5 5 0
 ./script/changeConfig.sh 64 physical
 ./script/restartAndConnect.sh
 ./script/changeAddressBasho.sh
