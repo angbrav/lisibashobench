@@ -10,11 +10,13 @@
 #key_per_update_tx, $10
 #key_per_read_update_tx, $11
 
+config=`cat ./lisiscripts/config`
+
 ./lisiscripts/conf_bench.sh 120 10 10 10000 uniform_int 0 0 1 0 0 5
 
 Command1="sudo /usr/sbin/ntpdate -b ntp.ubuntu.com"
 ./lisiscripts/parallel_command.sh nodes "$Command1"
 
-Command2="cd ./basho_bench && sudo ./basho_bench $config"
+Command2="cd ./basho_bench && sudo ./basho_bench examples/$config"
 
-#./lisiscripts/parallel_command.sh clients "$Command2"
+./lisiscripts/parallel_command.sh clients "$Command2"

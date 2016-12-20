@@ -9,7 +9,7 @@ then
 else
     Folder="current"
 fi
-Nodes=`cat ./lisiscripts/cients`
+Nodes=`cat ./lisiscripts/clients`
 Folder=`date +"%d%m%y_%H%M%S"`
 mkdir ./results/$Folder
 for node in $Nodes
