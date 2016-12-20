@@ -160,14 +160,14 @@ run(read_update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, 
             lager:info("Read_Success"),
             {ok, State};
         {ok, {_, ReadSet, _CausalClock}} ->
-            case read_freshness(ReadSet) of
-                0 ->
-                    lager:info("Read Success"),
-                    {ok, State};
-                F ->
-                    lager:error("Not the most recent data. Number of not fresh operation: ~p",[F]),
-                    {error, "Not the most recent data.", State}
-            end;
+	    {ok, State};
+            %case read_freshness(ReadSet) of
+            %    0 ->
+            %        {ok, State};
+            %    F ->
+            %        lager:error("Not the most recent data. Number of not fresh operation: ~p",[F]),
+            %        {error, stale, State}
+            %end;
         {error,timeout} ->
             lager:info("Timeout on client ~p",[Id]),
             {error, timeout, State};
@@ -185,6 +185,9 @@ get_operation(Key) ->
         1 ->
             {update, Key, increment , 1}
     end.
+
+read_freshness([]) ->
+    0;
 
 read_freshness([H|T]) ->
     read_freshness_rec(T,H,0).
