@@ -9,11 +9,11 @@ nodes=`cat ./lisiscripts/nodes`
 first=`head -1 ./lisiscripts/nodes`
 rest=`tail -n +2 ./lisiscripts/nodes`
 config=`cat ./lisiscripts/config`
-string="['lisi1@"$first"'"
+string="['nodes1@"$first"'"
 for node in $rest
 do
     let Counter=Counter+1
-    string=$string",'lisi"$Counter"@"$node"'"
+    string=$string",'nodes"$Counter"@"$node"'"
 done
 string=$string"]"
 Counter=0
