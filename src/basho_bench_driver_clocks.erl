@@ -27,6 +27,7 @@
 -include("basho_bench.hrl").
 
 -define(TIMEOUT, 20000).
+-define(KEY_PER_PART, 5000).
 -record(state, {worker_id,
                 time,
                 num_updates,
@@ -35,9 +36,11 @@
                 pb_port,
                 target_node,
                 nodes,
-                key_per_read_tx,
-                key_per_update_tx,
-                key_per_read_update_tx}).
+                num_partitions,
+                skewed_part_rate,
+                key_only_read,
+                key_read_update,
+                key_only_update}).
 
 %% ====================================================================
 %% API
@@ -56,9 +59,12 @@ new(Id) ->
     Nodes   = basho_bench_config:get(antidote_nodes),
     Cookie  = basho_bench_config:get(antidote_cookie),
     MyNode  = basho_bench_config:get(antidote_mynode, [basho_bench, longnames]),
-    KeyPerReadTx  = basho_bench_config:get(key_per_read_tx),
-    KeyPerUpdateTx  = basho_bench_config:get(key_per_update_tx),
-    KeyPerReadUpdateTx  = basho_bench_config:get(key_per_read_update_tx),
+    KeyOnlyRead  = basho_bench_config:get(key_only_read),
+    KeyReadUpdate  = basho_bench_config:get(key_read_update),
+    KeyOnlyUpdate  = basho_bench_config:get(key_only_update),
+
+    NumPartitions  = basho_bench_config:get(num_partitions),
+    SkewedPartRate = basho_bench_config:get(skewed_part_rate),
 
     %% Try to spin up net_kernel
     case net_kernel:start(MyNode) of
@@ -81,135 +87,68 @@ new(Id) ->
     {A1,A2,A3} = now(),
     random:seed(A1, A2, A3), 
 
-    {ok, #state{nodes=Nodes, worker_id=Id, key_per_read_tx=KeyPerReadTx, key_per_update_tx=KeyPerUpdateTx, key_per_read_update_tx=KeyPerReadUpdateTx}}.
+    {ok, #state{nodes=Nodes, worker_id=Id, key_only_read=KeyOnlyRead, key_read_update=KeyReadUpdate, key_only_update=KeyOnlyUpdate,
+        num_partitions=NumPartitions, skewed_part_rate=SkewedPartRate}}.
 
-run(read_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per_read_tx=KeyPerReadTx}) ->
-    Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
-    
-    L = sets:to_list(lists:foldl(fun(_, Set) ->
-                    sets:add_element(KeyGen()+1, Set)
-                end, sets:new(), lists:seq(1, KeyPerReadTx))),
-    Reads = [{read, Key} || Key <- L],
-    
-    Response = rpc:call(Node, antidote, execute_tx, [Reads]),
-    case Response of
-        {ok, {_, _CausalClock}} ->
-            lager:info("Read_Success"),
-            {ok, State};
-        {ok, {_, ReadSet, _CausalClock}} ->
-            case read_freshness(ReadSet) of
-                0 -> 
-                    lager:info("Read Success"),
-                    {ok, State};
-                F ->
-                    lager:error("Not the most recent data. Number of not fresh operation: ~p",[F]),
-                    {error, "Not the most recent data.", State}
-            end;
-        {error,timeout} ->
-            lager:info("Timeout on client ~p",[Id]),
-            {error, timeout, State};            
-        {error, Reason} ->
-            lager:error("Error: ~p",[Reason]),
-            {error, Reason, State};
-        {badrpc, Reason} ->
-            {error, Reason, State}
-    end;
-
-run(update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per_update_tx=KeyPerUpdateTx}) ->
+run(read_update_txn, KeyGen, _ValueGen, State=#state{nodes=Nodes, key_only_read=KOR, key_only_update=KOU, 
+        num_partitions=NP, skewed_part_rate=LeastRate, key_read_update=KRU}) ->
     Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
 
-    L = sets:to_list(lists:foldl(fun(_, Set) ->
-                 sets:add_element(KeyGen()+1, Set)
-                end, sets:new(), lists:seq(1, KeyPerUpdateTx))),
-    Updates = [{update, Key, increment, 1} || Key <- L],
-    
-    Response = rpc:call(Node, antidote, execute_tx, [Updates]),
+    ReadUpdates = get_operation(KOR, KOU, KRU, LeastRate, NP, sets:new(), []),
 
-    case Response of
-        {ok, {_, _CausalClock}} ->
-            lager:info("Success"),
-            {ok, State};
-        {ok, {_, _, _CausalClock}} ->
-            lager:info("Success"),
-            {ok, State};
-        {error,timeout} ->
-            lager:info("Timeout on client ~p",[Id]),
-            {error, timeout, State};            
-        {error, Reason} ->
-            lager:error("Error: ~p",[Reason]),
-            {error, Reason, State};
-        error ->
-            {error, abort, State};
-        {badrpc, Reason} ->
-            {error, Reason, State}
-    end;
+    Metadata = retry_until_commit(Node, ReadUpdates, 0),
+    {ok, Metadata, State}.
 
-run(read_update_txn, KeyGen, _ValueGen, State=#state{worker_id=Id, nodes=Nodes, key_per_read_update_tx=KeyPerReadUpdateTx}) ->
-    Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
-
-    L = sets:to_list(lists:foldl(fun(_, Set) ->
-            sets:add_element(KeyGen()+1, Set)
-         end, sets:new(), lists:seq(1, KeyPerReadUpdateTx))),
-
-    ReadUpdates = [get_operation(Key) || Key <- L],
-    %[lager:info("Operation: ~p", [Op]) || Op <- ReadUpdates],
-
+retry_until_commit(Node, ReadUpdates, Retried) ->
     Response = rpc:call(Node, antidote, execute_tx, [ReadUpdates]),
     case Response of
-        {ok, {_, _CausalClock}} ->
-            lager:info("Read_Success"),
-            {ok, State};
-        {ok, {_, ReadSet, _CausalClock}} ->
-	    {ok, State};
-            %case read_freshness(ReadSet) of
-            %    0 ->
-            %        {ok, State};
-            %    F ->
-            %        lager:error("Not the most recent data. Number of not fresh operation: ~p",[F]),
-            %        {error, stale, State}
-            %end;
-        {error,timeout} ->
-            lager:info("Timeout on client ~p",[Id]),
-            {error, timeout, State};
-        {error, Reason} ->
-            lager:error("Error: ~p",[Reason]),
-            {error, Reason, State};
-        {badrpc, Reason} ->
-            {error, Reason, State}
+        %{ok, {_, _ReadSet, _CausalClock, TimeWaited, VersionsMissed}} ->
+        %    {TimeWaited, VersionsMissed, Retried};
+        {ok, {_, _ReadSet, _CausalClock}} ->
+            %case Retried of 0 -> ok; _ -> lager:warning("Retried ~w times already", [Retried]) end,
+            {0, [0], Retried};
+        {error, _} ->
+            retry_until_commit(Node, ReadUpdates, Retried+1)
     end.
 
-get_operation(Key) ->
-    case Key rem 2 of
-        0 ->
-            {read, Key};
-        1 ->
-            {update, Key, increment , 1}
-    end.
+get_operation(0, 0, 0, _, _, _Set, List) ->
+    List;
+get_operation(0, 0, N, LeastRate, NP, Set, List) ->
+    Num = get_key(LeastRate, NP), 
+    %lager:warning("Key is ~w", [Num]),
+    case sets:is_element(Num, Set) of
+        true ->
+            get_operation(0, 0, N, LeastRate, NP, Set, List); 
+        false ->
+            get_operation(0, 0, N-1, LeastRate, NP, sets:add_element(Num, Set), [{read, Num}, {update, Num, increment, 1}]++List)
+    end; 
+get_operation(0, M, N, LeastRate, NP, Set, List) ->
+    Num = get_key(LeastRate, NP), 
+    %lager:warning("Key is ~w", [Num]),
+    case sets:is_element(Num, Set) of
+        true ->
+            get_operation(0, M, N, LeastRate, NP, Set, List); 
+        false ->
+            get_operation(0, M-1, N, LeastRate, NP, sets:add_element(Num, Set), [{update, Num, increment, 1}|List])
+    end; 
+get_operation(L, M, N, LeastRate, NP, Set, List) ->
+    Num = get_key(LeastRate, NP), 
+    case sets:is_element(Num, Set) of
+        true ->
+            get_operation(L, M, N, LeastRate, NP, Set, List); 
+        false ->
+            get_operation(L-1, M, N, LeastRate, NP, sets:add_element(Num, Set), [{read, Num}|List])
+    end. 
 
-read_freshness([]) ->
-    0;
-
-read_freshness([H|T]) ->
-    read_freshness_rec(T,H,0).
-
-read_freshness_rec([], {X, Y}, F) when X /= Y ->
-    F0 = F + 1,
-    print(X,Y),
-    F0;
-read_freshness_rec([], _, F) ->
-    F;
-read_freshness_rec([H|T], {X, Y}, F) when X /= Y ->
-    F0 = F + 1,
-    print(X,Y),
-    read_freshness_rec(T, H, F0);
-read_freshness_rec([H|T], _, F) ->
-    read_freshness_rec(T, H, F).
-
-print(X,Y) ->
-    case X of
-        nil ->
-            G = Y;
-        _ ->
-            G = Y-X
-    end,
-    lager:error("Not the most recent data. Expected ~p but was ~p. Gap: ~p",[Y, X, G]).
+get_key(LeastRate, NP) ->
+    N = random:uniform(100),
+    case N =< LeastRate of
+        true ->
+            %lager:warning("N is ~w, to partition 0", [N]),
+            random:uniform(?KEY_PER_PART)*NP;
+        false ->
+            Add = random:uniform(NP-1),
+            %lager:warning("N is ~w, to partition ~w", [N, Add]),
+            random:uniform(?KEY_PER_PART)*NP+Add
+    end. 
+    

@@ -34,6 +34,7 @@
          terminate/2, code_change/3]).
 
 -record(state, { id,
+                 counter,
                  keygen,
                  valgen,
                  driver,
@@ -107,6 +108,7 @@ init([SupChild, Id]) ->
     ValGen = basho_bench_valgen:new(basho_bench_config:get(value_generator), Id),
 
     State = #state { id = Id, keygen = KeyGen, valgen = ValGen,
+                     counter = 0,
                      driver = Driver,
                      shutdown_on_error = ShutdownOnError,
                      ops = Ops, ops_len = size(Ops),
@@ -281,9 +283,16 @@ worker_next_op(State) ->
     Result = worker_next_op2(State, OpTag),
     ElapsedUs = erlang:max(0, timer:now_diff(os:timestamp(), Start)),
     case Result of
-        {Res, DriverState} when Res == ok orelse element(1, Res) == ok ->
+        {Res, Metadata, DriverState} when Res == ok orelse element(1, Res) == ok ->
+            {TimeWaited, VersionsMissed, Retried} = Metadata,
+            lists:foreach(fun(_) ->
+                %lager:warning("Retrying aborted! ~w times in total", [Retried]),
+                basho_bench_stats:op_complete(Next, {error, aborted}, ElapsedUs) end,
+                lists:seq(1, Retried)),
             basho_bench_stats:op_complete(Next, Res, ElapsedUs),
-            {ok, State#state { driver_state = DriverState, last_op=false}};
+            Counter = State#state.counter,
+            ets:insert(txn_info, {{State#state.id, Counter}, TimeWaited, VersionsMissed, ElapsedUs}), 
+            {ok, State#state { driver_state = DriverState, last_op=false, counter=Counter+1}};
 
         {Res, DriverState} when Res == silent orelse element(1, Res) == silent ->
             {ok, State#state { driver_state = DriverState, last_op=false}};
