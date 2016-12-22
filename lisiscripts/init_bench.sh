@@ -15,3 +15,5 @@ Command2="cd ./basho_bench && sudo make all"
 ./lisiscripts/parallel_command.sh clients "$Command2"
 
 ./lisiscripts/change_benchname.sh
+
+./lisiscripts/init_name_bench.sh
