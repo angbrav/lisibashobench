@@ -39,6 +39,7 @@
 
 start() ->
     %% Redirect all SASL logging into a text file
+    ets:new(txn_info, [set, named_table, public]),
     case application:get_env(basho_bench,app_run_mode) of
        {ok, included} ->
           %%Make sure sasl and crypto is available
@@ -94,11 +95,30 @@ stop(_State) ->
     %% eprof:stop_profiling(),
     %% eprof:analyze(total),
     %% eprof:log("bb.eprof"),
+    output_to_file(),
+    ets:delete(txn_info),
     ok.
 
 %% ===================================================================
 %% Internal functions
 %% ===================================================================
+
+output_to_file() ->
+    Tab = ets:tab2list(txn_info),
+    {ok, Latency} = file:open("latency", [raw, binary, write]),
+    {ok, WaitLatency} = file:open("wait_latency", [raw, binary, write]),
+    {ok, MissedVersions} = file:open("missed_version", [raw, binary, write]),
+    lists:foreach(fun({_, TimeWaited, VersionsMissed, ElapsedUs}) ->
+        file:write(Latency, io_lib:format("~w\n", [ElapsedUs])),
+        file:write(WaitLatency, io_lib:format("~w\n", [TimeWaited])),
+        lists:foreach(fun(VM) ->
+            file:write(MissedVersions, io_lib:format("~w\n", [VM]))
+        end, VersionsMissed)
+        end , Tab),
+    file:close(Latency),
+    file:close(WaitLatency),
+    file:close(MissedVersions).
+
 
 ensure_started(Applications) when is_list(Applications) ->
   [ensure_started(Application) || Application <- Applications];
