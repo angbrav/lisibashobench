@@ -10,3 +10,6 @@ tags
 key
 .idea/*
 *.iml
+nodes
+clients
+results/
