@@ -102,11 +102,11 @@ run(read_update_txn, KeyGen, _ValueGen, State=#state{nodes=Nodes, key_only_read=
 retry_until_commit(Node, ReadUpdates, Retried) ->
     Response = rpc:call(Node, antidote, execute_tx, [ReadUpdates]),
     case Response of
-        %{ok, {_, _ReadSet, _CausalClock, TimeWaited, VersionsMissed}} ->
-        %    {TimeWaited, VersionsMissed, Retried};
-        {ok, {_, _ReadSet, _CausalClock}} ->
+        {ok, {_, _ReadSet, _CausalClock, TimeWaited, VersionsMissed}} ->
+            {TimeWaited, VersionsMissed, Retried};
+        %{ok, {_, _ReadSet, _CausalClock}} ->
             %case Retried of 0 -> ok; _ -> lager:warning("Retried ~w times already", [Retried]) end,
-            {0, [0], Retried};
+        %    {0, [0], Retried};
         {error, _} ->
             retry_until_commit(Node, ReadUpdates, Retried+1)
     end.
