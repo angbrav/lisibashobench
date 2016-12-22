@@ -26,7 +26,7 @@ KTx=${11}
 ./lisiscripts/set_bench_param.sh "{concurrent.*/{concurrent, $Clients}"
 ./lisiscripts/set_bench_param.sh "{value_generator.*/{value_generator, {fixed_bin, $Value}}"
 ./lisiscripts/set_bench_param.sh "{key_generator.*/{key_generator, {$Distribution, $Keys}}"
-./lisiscripts/set_bench_param.sh "{operations.*/{operations, [{read_txn, $ReadTx}, {update_txn, $UpdateTx}, {read_update_txn, $Tx}]}"
+./lisiscripts/set_bench_param.sh "{operations.*/{operations, [{read_update_txn, $Tx}]}"
 ./lisiscripts/set_bench_param.sh "{key_per_read_tx.*/{key_per_read_tx, $KRTx}"
 ./lisiscripts/set_bench_param.sh "{key_per_update_tx.*/{key_per_update_tx, $KUTx}"
 ./lisiscripts/set_bench_param.sh "{key_per_read_update_tx.*/{key_per_read_update_tx, $KTx}"

@@ -10,3 +10,6 @@ tags
 key
 .idea/*
 *.iml
+lisiscripts/nodes
+lisiscripts/clients
+results/

@@ -9,7 +9,7 @@ then
     branch=$1
     Command1="cd ./li-si && git reset --hard && git fetch && git checkout $branch && git pull"
 else
-    Command1="cd ./li-si && git pull origin master"
+    Command1="cd ./li-si && git pull origin ec2"
 fi
 
 ./lisiscripts/parallel_command.sh nodes "$Command1"
