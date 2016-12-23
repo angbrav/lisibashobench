@@ -11,5 +11,6 @@ do
 
     Command2="cd ./basho_bench && sudo ./basho_bench examples/$config"
     ./lisiscripts/parallel_command.sh clients "$Command2"
+    ./lisiscripts/gather_results.sh
 done
 
