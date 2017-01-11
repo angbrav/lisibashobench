@@ -22,7 +22,8 @@
 -module(basho_bench_driver_clocks).
 
 -export([new/1,
-         run/4]).
+         run/4,
+         get_parts/1]).
 
 -include("basho_bench.hrl").
 
@@ -94,6 +95,8 @@ run(read_update_txn, KeyGen, _ValueGen, State=#state{nodes=Nodes, key_only_read=
     Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
 
     ReadUpdates = get_operation(KOR, KOU, KRU, LeastRate, NP, KeyGen, sets:new(), []),
+    %Parts = get_parts(ReadUpdates),
+    %lager:warning("Partitions are ~w", [Parts]),
 
     Metadata = retry_until_commit(Node, ReadUpdates, 0),
     {ok, Metadata, State}.
@@ -111,35 +114,53 @@ retry_until_commit(Node, ReadUpdates, Retried) ->
     end.
 
 get_operation(0, 0, 0, _, _, _, _Set, List) ->
-    List;
+    lists:reverse(List);
 get_operation(0, 0, N, LeastRate, NP, KeyGen, Set, List) ->
-    Num = get_key(LeastRate, NP, KeyGen), 
-    %lager:warning("Key is ~w", [Num]),
-    case sets:is_element(Num, Set) of
-        true ->
-            get_operation(0, 0, N, LeastRate, NP, KeyGen, Set, List); 
-        false ->
-            get_operation(0, 0, N-1, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}, {update, Num, increment, 1}]++List)
-    end; 
+    case sets:size(Set) of
+        0 ->
+            Num = get_first_key(LeastRate, NP, KeyGen), 
+            get_operation(0, 0, N-1, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}, {update, Num, increment, 1}]);
+        _ ->
+            Num = get_key(LeastRate, NP, KeyGen), 
+            %lager:warning("Key is ~w", [Num]),
+            case sets:is_element(Num, Set) of
+                true ->
+                    get_operation(0, 0, N, LeastRate, NP, KeyGen, Set, List); 
+                false ->
+                    get_operation(0, 0, N-1, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}, {update, Num, increment, 1}]++List)
+            end
+    end;
 get_operation(0, M, N, LeastRate, NP, KeyGen, Set, List) ->
-    Num = get_key(LeastRate, NP, KeyGen), 
-    %lager:warning("Key is ~w", [Num]),
-    case sets:is_element(Num, Set) of
-        true ->
-            get_operation(0, M, N, LeastRate, NP, KeyGen, Set, List); 
-        false ->
-            get_operation(0, M-1, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{update, Num, increment, 1}|List])
-    end; 
+    case sets:size(Set) of
+        0 ->
+            Num = get_first_key(LeastRate, NP, KeyGen), 
+            get_operation(0, M-1, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{update, Num, increment, 1}]);
+        _ ->
+            Num = get_key(LeastRate, NP, KeyGen), 
+            %lager:warning("Key is ~w", [Num]),
+            case sets:is_element(Num, Set) of
+                true ->
+                    get_operation(0, M, N, LeastRate, NP, KeyGen, Set, List); 
+                false ->
+                    get_operation(0, M-1, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{update, Num, increment, 1}|List])
+            end
+    end;
 get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List) ->
-    Num = get_key(LeastRate, NP, KeyGen), 
-    case sets:is_element(Num, Set) of
-        true ->
-            get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List); 
-        false ->
-            get_operation(L-1, M, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}|List])
-    end. 
+    case sets:size(Set) of
+        0 ->
+            Num = get_first_key(LeastRate, NP, KeyGen), 
+            get_operation(L-1, M, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}]);
+        _ ->
+            Num = get_key(LeastRate, NP, KeyGen), 
+            case sets:is_element(Num, Set) of
+                true ->
+                    get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List); 
+                false ->
+                    get_operation(L-1, M, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}|List])
+            end
+    end.
 
-get_key(LeastRate, NP, KeyGen) ->
+get_first_key(LeastRate, NP, KeyGen) ->
     N = random:uniform(100),
     case N =< LeastRate of
         true ->
@@ -151,3 +172,14 @@ get_key(LeastRate, NP, KeyGen) ->
             KeyGen()*NP+Add
     end. 
     
+get_key(_LeastRate, NP, KeyGen) ->
+    Add = random:uniform(NP-1),
+    %lager:warning("to partition ~w", [Add]),
+    KeyGen()*NP+Add.
+
+get_parts([]) ->
+    [];
+get_parts([{read, Key}|Rest]) ->
+    [Key rem 8|get_parts(Rest)];
+get_parts([{update, Key, _, _}|Rest]) ->
+    [Key rem 8|get_parts(Rest)].
