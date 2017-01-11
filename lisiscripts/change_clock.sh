@@ -10,6 +10,8 @@ for node in $nodes
 do
     Command2="cd ./li-si && sudo sed -i -e 's#{clock_type.*#{clock_type, $1}.#' rel/files/antidote.config"
     ssh -o ConnectTimeout=10 -t ubuntu@$node -i ~/ec2-saturn ${Command2/localhost/$node} &
+    Command3="cd ./li-si && sudo sed -i -e 's#{clock_type.*#{clock_type, $1}.#' rel/antidote/antidote.config"
+    ssh -o ConnectTimeout=10 -t ubuntu@$node -i ~/ec2-saturn ${Command3/localhost/$node} &
 done
 echo $command done
 
