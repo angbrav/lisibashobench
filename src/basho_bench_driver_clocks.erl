@@ -35,6 +35,7 @@
                 clock,
                 pb_port,
                 target_node,
+                start_in_straggler,
                 nodes,
                 num_partitions,
                 skewed_part_rate,
@@ -65,6 +66,7 @@ new(Id) ->
 
     NumPartitions  = basho_bench_config:get(num_partitions),
     SkewedPartRate = basho_bench_config:get(skewed_part_rate),
+    StartInStraggler = basho_bench_config:get(start_in_straggler),
 
     %% Try to spin up net_kernel
     case net_kernel:start(MyNode) of
@@ -88,21 +90,22 @@ new(Id) ->
     random:seed(A1, A2, A3), 
 
     {ok, #state{nodes=Nodes, worker_id=Id, key_only_read=KeyOnlyRead, key_read_update=KeyReadUpdate, key_only_update=KeyOnlyUpdate,
-        num_partitions=NumPartitions, skewed_part_rate=SkewedPartRate}}.
+        num_partitions=NumPartitions, skewed_part_rate=SkewedPartRate, start_in_straggler=StartInStraggler}}.
 
 run(read_update_txn, KeyGen, _ValueGen, State=#state{nodes=Nodes, key_only_read=KOR, key_only_update=KOU, 
-        num_partitions=NP, skewed_part_rate=LeastRate, key_read_update=KRU}) ->
+        num_partitions=NP, skewed_part_rate=LeastRate, key_read_update=KRU, start_in_straggler=StartInStraggler}) ->
     Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
 
     ReadUpdates = get_operation(KOR, KOU, KRU, LeastRate, NP, KeyGen, sets:new(), []),
     %Parts = get_parts(ReadUpdates),
-    %lager:warning("Partitions are ~w", [Parts]),
+    %lager:warning("Partitions are ~w", [ReadUpdates]),
 
-    Metadata = retry_until_commit(Node, ReadUpdates, 0),
+    StartPartId = get_start_id(NP, StartInStraggler),
+    Metadata = retry_until_commit(Node, StartPartId, ReadUpdates, 0),
     {ok, Metadata, State}.
 
-retry_until_commit(Node, ReadUpdates, Retried) ->
-    Response = rpc:call(Node, antidote, execute_tx, [ReadUpdates]),
+retry_until_commit(Node, StartPartId, ReadUpdates, Retried) ->
+    Response = rpc:call(Node, antidote, execute_tx, [StartPartId, ReadUpdates]),
     case Response of
         {ok, {_, _ReadSet, _CausalClock, TimeWaited, VersionsMissed}} ->
             {TimeWaited, VersionsMissed, Retried};
@@ -110,7 +113,7 @@ retry_until_commit(Node, ReadUpdates, Retried) ->
             %case Retried of 0 -> ok; _ -> lager:warning("Retried ~w times already", [Retried]) end,
         %    {0, [0], Retried};
         {error, _} ->
-            retry_until_commit(Node, ReadUpdates, Retried+1)
+            retry_until_commit(Node, StartPartId, ReadUpdates, Retried+1)
     end.
 
 get_operation(0, 0, 0, _, _, _, _Set, List) ->
@@ -183,3 +186,14 @@ get_parts([{read, Key}|Rest]) ->
     [Key rem 8|get_parts(Rest)];
 get_parts([{update, Key, _, _}|Rest]) ->
     [Key rem 8|get_parts(Rest)].
+
+get_start_id(_NP, ignore) ->
+    ignore;
+get_start_id(NP, StartInStraggler) ->
+    N = random:uniform(100),
+    case N =< StartInStraggler of
+        true ->
+            0;
+        false ->
+            random:uniform(NP-1)+1      
+    end.
