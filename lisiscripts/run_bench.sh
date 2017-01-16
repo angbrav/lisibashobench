@@ -13,7 +13,7 @@
 
 config=`cat ./lisiscripts/config`
 
-./lisiscripts/conf_bench.sh 120 7 10 10000 uniform_int 8 10 0 0 5
+#./lisiscripts/conf_bench.sh 120 7 10 10000 uniform_int 8 10 0 0 5
 
 Command1="sudo /usr/sbin/ntpdate -b ntp.ubuntu.com"
 ./lisiscripts/parallel_command.sh nodes "$Command1"
