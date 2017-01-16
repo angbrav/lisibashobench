@@ -7,9 +7,9 @@ StartRate="80"
 Clocks="logical"
 #Clocks="logical aggr_logical physical"
 
-for Clock in $Clocks:
+for Clock in $Clocks
 do
-    for PR in $PartRate:
+    for PR in $PartRate
     do
         for SR in $StartRate
         do
