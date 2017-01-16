@@ -1,8 +1,11 @@
 #!/bin/bash
 
-PartRate="1 13 80"
-StartRate="1 13 80"
-Clocks="logical aggr_logical physical"
+#PartRate="1 13 80"
+#StartRate="1 13 80"
+PartRate="13"
+StartRate="80"
+Clocks="logical"
+#Clocks="logical aggr_logical physical"
 
 for Clock in $Clocks:
 do
