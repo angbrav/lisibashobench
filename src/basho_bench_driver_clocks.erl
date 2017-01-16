@@ -100,11 +100,11 @@ run(read_update_txn, KeyGen, _ValueGen, State=#state{nodes=Nodes, key_only_read=
     %Parts = get_parts(ReadUpdates),
     %lager:warning("Partitions are ~w", [ReadUpdates]),
 
-    StartPartId = get_start_id(NP, StartInStraggler),
-    Metadata = retry_until_commit(Node, StartPartId, ReadUpdates, 0),
+    Metadata = retry_until_commit(Node, NP, StartInStraggler, ReadUpdates, 0),
     {ok, Metadata, State}.
 
-retry_until_commit(Node, StartPartId, ReadUpdates, Retried) ->
+retry_until_commit(Node, NP, StartInStraggler, ReadUpdates, Retried) ->
+    StartPartId = get_start_id(NP, StartInStraggler),
     Response = rpc:call(Node, antidote, execute_tx, [StartPartId, ReadUpdates]),
     case Response of
         {ok, {_, _ReadSet, _CausalClock, TimeWaited, VersionsMissed}} ->
@@ -113,7 +113,7 @@ retry_until_commit(Node, StartPartId, ReadUpdates, Retried) ->
             %case Retried of 0 -> ok; _ -> lager:warning("Retried ~w times already", [Retried]) end,
         %    {0, [0], Retried};
         {error, _} ->
-            retry_until_commit(Node, StartPartId, ReadUpdates, Retried+1)
+            retry_until_commit(Node, NP, StartInStraggler, ReadUpdates, Retried+1)
     end.
 
 get_operation(0, 0, 0, _, _, _, _Set, List) ->
@@ -193,6 +193,7 @@ get_start_id(NP, StartInStraggler) ->
     N = random:uniform(100),
     case N =< StartInStraggler of
         true ->
+            %lager:warning("N is ~w, StartInStraggler is ~w, in straggler", [N, StartInStraggler]),
             0;
         false ->
             random:uniform(NP-1)+1      
