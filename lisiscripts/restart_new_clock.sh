@@ -3,7 +3,7 @@
 nodes=`cat ./lisiscripts/nodes`
 Command0="cd ./li-si && sudo ./rel/antidote/bin/antidote stop"
 
-./lisiscripts/parallel_command.sh "$nodes" "$Command0"
+./lisiscripts/parallel_command.sh nodes "$Command0"
 
 ./lisiscripts/change_clock.sh $1
 
@@ -17,7 +17,7 @@ Command0="cd ./li-si && sudo ./rel/antidote/bin/antidote stop"
 
 Command5="cd ./li-si && sudo ./rel/antidote/bin/antidote start"
 
-./lisiscripts/parallel_command.sh "$nodes" "$Command5"
+./lisiscripts/parallel_command.sh nodes "$Command5"
 
 sleep 5
 
