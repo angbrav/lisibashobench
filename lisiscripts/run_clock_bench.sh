@@ -8,7 +8,7 @@ for Clock in $Clocks:
 do
     for PR in $PartRate:
     do
-        for SR in $StartRate:
+        for SR in $StartRate
         do
             ./lisiscripts/restart_new_clock.sh $Clock 
             ./lisiscripts/init_bench.sh ec2
