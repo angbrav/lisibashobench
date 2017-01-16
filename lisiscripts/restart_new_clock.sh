@@ -1,5 +1,6 @@
 #!/bin/bash
 
+nodes=`cat ./lisiscripts/nodes`
 Command0="cd ./li-si && sudo ./rel/antidote/bin/antidote stop"
 
 ./lisiscripts/parallel_command.sh nodes "$Command0"
