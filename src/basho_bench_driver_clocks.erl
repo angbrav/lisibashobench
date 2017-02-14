@@ -164,7 +164,7 @@ get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List) ->
     end.
 
 get_first_key(LeastRate, NP, KeyGen) ->
-    N = random:uniform(100),
+    N = random:uniform(1000),
     case N =< LeastRate of
         true ->
             %lager:warning("N is ~w, to partition 0", [N]),
@@ -190,7 +190,7 @@ get_parts([{update, Key, _, _}|Rest]) ->
 get_start_id(_NP, ignore) ->
     ignore;
 get_start_id(NP, StartInStraggler) ->
-    N = random:uniform(100),
+    N = random:uniform(1000),
     case N =< StartInStraggler of
         true ->
             %lager:warning("N is ~w, StartInStraggler is ~w, in straggler", [N, StartInStraggler]),
