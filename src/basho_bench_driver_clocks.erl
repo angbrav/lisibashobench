@@ -121,7 +121,7 @@ get_operation(0, 0, 0, _, _, _, _Set, List) ->
 get_operation(0, 0, N, LeastRate, NP, KeyGen, Set, List) ->
     case sets:size(Set) of
         0 ->
-            Num = get_first_key(LeastRate, NP, KeyGen), 
+            Num = get_key(LeastRate, NP, KeyGen), 
             get_operation(0, 0, N-1, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}, {update, Num, increment, 1}]);
         _ ->
             Num = get_key(LeastRate, NP, KeyGen), 
@@ -136,7 +136,7 @@ get_operation(0, 0, N, LeastRate, NP, KeyGen, Set, List) ->
 get_operation(0, M, N, LeastRate, NP, KeyGen, Set, List) ->
     case sets:size(Set) of
         0 ->
-            Num = get_first_key(LeastRate, NP, KeyGen), 
+            Num = get_key(LeastRate, NP, KeyGen), 
             get_operation(0, M-1, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{update, Num, increment, 1}]);
         _ ->
             Num = get_key(LeastRate, NP, KeyGen), 
@@ -151,7 +151,7 @@ get_operation(0, M, N, LeastRate, NP, KeyGen, Set, List) ->
 get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List) ->
     case sets:size(Set) of
         0 ->
-            Num = get_first_key(LeastRate, NP, KeyGen), 
+            Num = get_key(LeastRate, NP, KeyGen), 
             get_operation(L-1, M, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}]);
         _ ->
             Num = get_key(LeastRate, NP, KeyGen), 
@@ -163,7 +163,7 @@ get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List) ->
             end
     end.
 
-get_first_key(LeastRate, NP, KeyGen) ->
+get_key(LeastRate, NP, KeyGen) ->
     N = random:uniform(1000),
     case N =< LeastRate of
         true ->
@@ -175,10 +175,10 @@ get_first_key(LeastRate, NP, KeyGen) ->
             KeyGen()*NP+Add
     end. 
     
-get_key(_LeastRate, NP, KeyGen) ->
-    Add = random:uniform(NP-1),
-    %lager:warning("to partition ~w", [Add]),
-    KeyGen()*NP+Add.
+%get_key(_LeastRate, NP, KeyGen) ->
+%    Add = random:uniform(NP-1),
+%    %lager:warning("to partition ~w", [Add]),
+%    KeyGen()*NP+Add.
 
 get_parts([]) ->
     [];
@@ -196,5 +196,5 @@ get_start_id(NP, StartInStraggler) ->
             %lager:warning("N is ~w, StartInStraggler is ~w, in straggler", [N, StartInStraggler]),
             0;
         false ->
-            random:uniform(NP-1)+1      
+            random:uniform(NP-1)      
     end.
