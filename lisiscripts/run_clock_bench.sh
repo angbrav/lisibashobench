@@ -5,7 +5,7 @@ PartRate="1 10 100 500"
 ## The probability (divided by 1000) of a transaction to start in a particular partition.
 StartRate="1 10 100 500"
 Clocks="logical aggr_logical physical"
-Num="1 2"
+Num="1"
 
 #folders=`ls -d /Users/liz/Documents/MyDocument/repositories/lisibashobench/results/Feb14/tests/*`
 #array=($folders)
