@@ -3,16 +3,17 @@
 #Duration=$1 (seconds)
 #Concurrent=$2
 #Value=$3
-#Keys=$4
+#Keys per partition=$4
 #Distribution=$5
-#{operations, [{read_txn, $6}, {update_txn, $7}, {read_update_txn, $8}]}.
-#key_per_read_tx, $9
-#key_per_update_tx, $10
-#key_per_read_update_tx, $11
+#number of partitions $6
+#percetange partition least used $7
+#key_per_read_tx, $8
+#key_per_update_tx, $9
+#key_per_read_update_tx, $10
 
 config=`cat ./lisiscripts/config`
 
-./lisiscripts/conf_bench.sh 120 10 10 10000 uniform_int 0 0 1 0 0 5
+#./lisiscripts/conf_bench.sh 120 7 10 10000 uniform_int 8 10 0 0 5
 
 Command1="sudo /usr/sbin/ntpdate -b ntp.ubuntu.com"
 ./lisiscripts/parallel_command.sh nodes "$Command1"
