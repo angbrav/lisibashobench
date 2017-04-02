@@ -39,6 +39,7 @@
                 nodes,
                 num_partitions,
                 skewed_part_rate,
+                part_to_access,
                 key_only_read,
                 key_read_update,
                 key_only_update}).
@@ -65,6 +66,7 @@ new(Id) ->
     KeyOnlyUpdate  = basho_bench_config:get(key_only_update),
 
     NumPartitions  = basho_bench_config:get(num_partitions),
+    PartToAccess  = basho_bench_config:get(part_to_access),
     SkewedPartRate = basho_bench_config:get(skewed_part_rate),
     StartInStraggler = basho_bench_config:get(start_in_straggler),
 
@@ -89,16 +91,14 @@ new(Id) ->
     {A1,A2,A3} = now(),
     random:seed(A1, A2, A3), 
 
-    {ok, #state{nodes=Nodes, worker_id=Id, key_only_read=KeyOnlyRead, key_read_update=KeyReadUpdate, key_only_update=KeyOnlyUpdate,
-        num_partitions=NumPartitions, skewed_part_rate=SkewedPartRate, start_in_straggler=StartInStraggler}}.
+    {ok, #state{nodes=Nodes, worker_id=Id, key_only_read=KeyOnlyRead, key_read_update=KeyReadUpdate, key_only_update=KeyOnlyUpdate, part_to_access=PartToAccess, num_partitions=NumPartitions, skewed_part_rate=SkewedPartRate, start_in_straggler=StartInStraggler}}.
 
 run(read_update_txn, KeyGen, _ValueGen, State=#state{nodes=Nodes, key_only_read=KOR, key_only_update=KOU, 
-        num_partitions=NP, skewed_part_rate=LeastRate, key_read_update=KRU, start_in_straggler=StartInStraggler}) ->
+        num_partitions=NP, skewed_part_rate=LeastRate, key_read_update=KRU, part_to_access=NPToAccess, start_in_straggler=StartInStraggler}) ->
     Node = lists:nth((KeyGen() rem length(Nodes)+1), Nodes),
-
-    ReadUpdates = get_operation(KOR, KOU, KRU, LeastRate, NP, KeyGen, sets:new(), []),
+    ReadUpdates = get_operation(KOR, KOU, KRU, LeastRate, NPToAccess, NP, KeyGen, sets:new()),
     %Parts = get_parts(ReadUpdates),
-    %lager:warning("Partitions are ~w", [ReadUpdates]),
+    %lager:warning("Operations are ~w", [ReadUpdates]),
 
     Metadata = retry_until_commit(Node, NP, StartInStraggler, ReadUpdates, 0),
     {ok, Metadata, State}.
@@ -116,64 +116,51 @@ retry_until_commit(Node, NP, StartInStraggler, ReadUpdates, Retried) ->
             retry_until_commit(Node, NP, StartInStraggler, ReadUpdates, Retried+1)
     end.
 
-get_operation(0, 0, 0, _, _, _, _Set, List) ->
-    lists:reverse(List);
-get_operation(0, 0, N, LeastRate, NP, KeyGen, Set, List) ->
-    case sets:size(Set) of
-        0 ->
-            Num = get_key(LeastRate, NP, KeyGen), 
-            get_operation(0, 0, N-1, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}, {update, Num, increment, 1}]);
-        _ ->
-            Num = get_key(LeastRate, NP, KeyGen), 
-            %lager:warning("Key is ~w", [Num]),
-            case sets:is_element(Num, Set) of
-                true ->
-                    get_operation(0, 0, N, LeastRate, NP, KeyGen, Set, List); 
-                false ->
-                    get_operation(0, 0, N-1, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}, {update, Num, increment, 1}]++List)
-            end
-    end;
-get_operation(0, M, N, LeastRate, NP, KeyGen, Set, List) ->
-    case sets:size(Set) of
-        0 ->
-            Num = get_key(LeastRate, NP, KeyGen), 
-            get_operation(0, M-1, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{update, Num, increment, 1}]);
-        _ ->
-            Num = get_key(LeastRate, NP, KeyGen), 
-            %lager:warning("Key is ~w", [Num]),
-            case sets:is_element(Num, Set) of
-                true ->
-                    get_operation(0, M, N, LeastRate, NP, KeyGen, Set, List); 
-                false ->
-                    get_operation(0, M-1, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{update, Num, increment, 1}|List])
-            end
-    end;
-get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List) ->
-    case sets:size(Set) of
-        0 ->
-            Num = get_key(LeastRate, NP, KeyGen), 
-            get_operation(L-1, M, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}]);
-        _ ->
-            Num = get_key(LeastRate, NP, KeyGen), 
-            case sets:is_element(Num, Set) of
-                true ->
-                    get_operation(L, M, N, LeastRate, NP, KeyGen, Set, List); 
-                false ->
-                    get_operation(L-1, M, N, LeastRate, NP, KeyGen, sets:add_element(Num, Set), [{read, Num}|List])
-            end
+get_operation(_ROPP, _WOPP, _RWPP, _, 0, _, _, _PartSet) ->
+    [];
+get_operation(ROPP, WOPP, RWPP, LeastRate, NPToAccess, TotalParts, KeyGen, PartSet) ->
+    N = random:uniform(1000),
+    Part = case N =< LeastRate of
+            true -> 0;
+            false -> random:uniform(TotalParts-1)
+           end,
+    lager:warning("Going for part ~w", [Part]),
+    case sets:is_element(Part, PartSet) of
+        true ->
+            get_operation(ROPP, WOPP, RWPP, LeastRate, NPToAccess, TotalParts, KeyGen, PartSet);
+        false ->
+            {ROKeys, Set0} = get_keys(TotalParts, Part, ROPP, KeyGen, [], sets:new()),
+            {WOKeys, Set1} = get_keys(TotalParts, Part, WOPP, KeyGen, [], Set0),
+            {RWKeys, _Set2} = get_keys(TotalParts, Part, RWPP, KeyGen, [], Set1),
+            Ops1 = lists:foldl(fun(Key, Add) -> [{read, Key}|Add] end, [], ROKeys),
+            Ops2 = lists:foldl(fun(Key, Add) -> [{update, Key, increment, 1}|Add] end, Ops1, WOKeys),
+            Ops3 = lists:foldl(fun(Key, Add) -> [{read, Key}|[{update, Key, increment, 1}|Add]] end, Ops2, RWKeys),
+            Ops3 ++ get_operation(ROPP, WOPP, RWPP, LeastRate, 
+                NPToAccess-1, TotalParts, KeyGen, sets:add_element(Part, PartSet))
     end.
 
-get_key(LeastRate, NP, KeyGen) ->
-    N = random:uniform(1000),
-    case N =< LeastRate of
+get_keys(_NumParts, _PAdd, 0, _KeyGen, KeyList, Set) ->
+    {KeyList, Set};
+get_keys(NumParts, PAdd, NumKeys, KeyGen, KeyList, Set) ->
+    Key = KeyGen()*NumParts + PAdd,
+    case sets:is_element(Key, Set) of
         true ->
-            %lager:warning("N is ~w, to partition 0", [N]),
-            KeyGen()*NP;
+            get_keys(NumParts, PAdd, NumKeys, KeyGen, KeyList, Set);
         false ->
-            Add = random:uniform(NP-1),
-            %lager:warning("N is ~w, to partition ~w", [N, Add]),
-            KeyGen()*NP+Add
-    end. 
+            get_keys(NumParts, PAdd, NumKeys-1, KeyGen, [Key|KeyList], sets:add_element(Key, Set))
+    end.
+
+%get_key(LeastRate, NP, KeyGen) ->
+%    N = random:uniform(1000),
+%    case N =< LeastRate of
+%        true ->
+%            %lager:warning("N is ~w, to partition 0", [N]),
+%            KeyGen()*NP;
+%        false ->
+%            Add = random:uniform(NP-1),
+%            %lager:warning("N is ~w, to partition ~w", [N, Add]),
+%            KeyGen()*NP+Add
+%    end. 
     
 %get_key(_LeastRate, NP, KeyGen) ->
 %    Add = random:uniform(NP-1),
