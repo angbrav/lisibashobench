@@ -20,8 +20,8 @@ PartToAccess=${12}
 ./lisiscripts/set_bench_param.sh "{num_partitions.*/{num_partitions, $NP}"
 ./lisiscripts/set_bench_param.sh "{skewed_part_rate.*/{skewed_part_rate, $Rate}"
 ./lisiscripts/set_bench_param.sh "{start_in_straggler.*/{start_in_straggler, $Start}"
-./lisiscripts/set_bench_param.sh "{key_per_read_tx.*/{key_per_read_tx, $KRTx}"
-./lisiscripts/set_bench_param.sh "{key_per_update_tx.*/{key_per_update_tx, $KUTx}"
-./lisiscripts/set_bench_param.sh "{key_per_read_update_tx.*/{key_per_read_update_tx, $KTx}"
+./lisiscripts/set_bench_param.sh "{key_only_read.*/{key_only_read, $KRTx}"
+./lisiscripts/set_bench_param.sh "{key_only_update.*/{key_only_update, $KUTx}"
+./lisiscripts/set_bench_param.sh "{key_read_update.*/{key_read_update, $KTx}"
 ./lisiscripts/set_bench_param.sh "{part_to_access.*/{part_to_access, $PartToAccess}"
 
