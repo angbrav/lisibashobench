@@ -11,6 +11,7 @@ Start=$8
 KRTx=$9
 KUTx=${10}
 KTx=${11}
+PartToAccess=${12}
 
 ./lisiscripts/set_bench_param.sh "{duration.*/{duration, $Duration}"
 ./lisiscripts/set_bench_param.sh "{concurrent.*/{concurrent, $Clients}"
@@ -22,4 +23,5 @@ KTx=${11}
 ./lisiscripts/set_bench_param.sh "{key_per_read_tx.*/{key_per_read_tx, $KRTx}"
 ./lisiscripts/set_bench_param.sh "{key_per_update_tx.*/{key_per_update_tx, $KUTx}"
 ./lisiscripts/set_bench_param.sh "{key_per_read_update_tx.*/{key_per_read_update_tx, $KTx}"
+./lisiscripts/set_bench_param.sh "{part_to_access.*/{part_to_access, $PartToAccess}"
 

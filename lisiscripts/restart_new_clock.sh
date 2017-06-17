@@ -5,7 +5,7 @@ Command0="cd ./li-si && sudo ./rel/antidote/bin/antidote stop"
 
 ./lisiscripts/parallel_command.sh nodes "$Command0"
 
-./lisiscripts/change_clock.sh $1
+./lisiscripts/change_clock.sh $1 $2
 
 #Command3="cd ./li-si && sudo make relclean"
 

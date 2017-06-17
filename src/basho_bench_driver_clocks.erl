@@ -124,7 +124,7 @@ get_operation(ROPP, WOPP, RWPP, LeastRate, NPToAccess, TotalParts, KeyGen, PartS
             true -> 0;
             false -> random:uniform(TotalParts-1)
            end,
-    lager:warning("Going for part ~w", [Part]),
+    %lager:warning("Going for part ~w", [Part]),
     case sets:is_element(Part, PartSet) of
         true ->
             get_operation(ROPP, WOPP, RWPP, LeastRate, NPToAccess, TotalParts, KeyGen, PartSet);
