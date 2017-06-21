@@ -24,7 +24,6 @@ do
                 ./lisiscripts/run_bench.sh
                 ./lisiscripts/summary.sh
                 echo "$Clock $IfPrecise 60 7 10 10000 uniform_int 8 $PR $SR 0 0 5 2" > ./results/current/config
-		exit
             done
         done
     done
