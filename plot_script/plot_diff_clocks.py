@@ -29,12 +29,13 @@ def build_config_dict(input_folder):
     config_dict={}
     for f in files:
         config_file = os.path.join(f, "config") 
-        with open(config_file) as fl:
-            config=fl.read().split('\n', 1)[0]
-            if config in config_dict:
-                config_dict[config].append(f)
-            else:
-                config_dict[config] = [f]
+        if os.path.isfile(config_file):
+            with open(config_file) as fl:
+                config=fl.read().split('\n', 1)[0]
+                if config in config_dict:
+                    config_dict[config].append(f)
+                else:
+                    config_dict[config] = [f]
     return config_dict
 
 def get_throughput(config_list, config_dict):
@@ -73,36 +74,27 @@ def get_throughput(config_list, config_dict):
         i += 1
     return throughput_list, abort_rate_list, std_list
 
-input_folder="/Users/liz/Documents/MyDocument/repositories/lisibashobench/results/fake-physical/results/"
+#input_folder="/Users/liz/Documents/MyDocument/repositories/lisibashobench/results/fake-physical/results/"
+input_folder="results/June20/"
 #input_folder="/Users/liz/Documents/MyDocument/repositories/lisibashobench/results/Mar03/results/"
 #files=glob.glob(input_folder+"*")
-series1=get_matching_series(input_folder, [0, 5, 'physical', 'uniform_int'], 8)
-series2=get_matching_series(input_folder, [0, 5, 'fake_physical', 'uniform_int'], 8)
+series1=get_matching_series(input_folder, [0, 1, 'physical', 'false'], 9)
+series2=get_matching_series(input_folder, [0, 1, 'logical', 'false'], 9)
+#series3=get_matching_series(input_folder, [0, 1, 'logical', 'true'], 8)
 #series2=get_matching_series(input_folder, [0, 5, 'physical', 'pareto_int'], 8)
 #series3=get_matching_series(input_folder, [0, 5, 'logical', 'uniform_int'], 8)
 #series4=get_matching_series(input_folder, [0, 5, 'logical', 'pareto_int'], 8)
 #series5=get_matching_series(input_folder, [0, 5, 'aggr_logical', 'uniform_int'], 8)
 #series6=get_matching_series(input_folder, [0, 5, 'aggr_logical', 'pareto_int'], 8)
 config_dict=build_config_dict(input_folder)
-#print(config_dict)
-#print(series1)
-#print(series2)
-#print(series3)
-#print(series4)
-#print(series5)
-#print(series6)
-sr=[900, 700, 500, 200, 100, 10, 1]
-#legends=['Physical uniform', 
-#         'Physical pareto',
-#         'Logical uniform', 
-#         'Logical pareto',
-#         'AggrLogical uniform', 
-#         'AggrLogical pareto']
-#legends=['Physical uniform', 
-#         'Logical uniform', 
-#         'AggrLogical uniform'] 
-legends=['Physical uniform', 
-         'Fake physical uniform'] 
+print series1
+print series2
+#print series3
+sr=[500, 100, 10, 1]
+legends=['Physical',
+         'Logical non precise'
+         #'Logical precise'
+         ] 
 time=datetime.now().strftime("%Y%m%d-%H:%M:%S")
 output_folder='./results/figures/' + time
 os.mkdir(output_folder)
@@ -113,15 +105,16 @@ for i in range(4):
     #             sort_by_num(series5[i]), sort_by_num(series6[i])]
     total_series=[sort_by_num(series1[i]), 
                  sort_by_num(series2[i])]
+    print total_series
+                 #sort_by_num(series3[i])]
     #total_series=[sort_by_num(series1[i]), 
     #             sort_by_num(series3[i]),
     #             sort_by_num(series5[i])]
                  #sort_by_num(series5[i])]
     th_list, abort_rate_list, std_list = get_throughput(total_series, config_dict)
     #print(total_series)
-    nthfield = get_nth_field(total_series, 7)
-    #print(abort_rate_list)
-    #print(nthfield)
+    nthfield = get_nth_field(total_series, 8)
+    print nthfield
     #print(th_list)
     #print(std_list)
     plot_lines(th_list, abort_rate_list, std_list, nthfield, legends, "Start rate "+str(sr[i]), output_folder)
