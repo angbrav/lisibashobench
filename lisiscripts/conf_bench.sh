@@ -26,6 +26,7 @@ echo "{key_only_update.* {key_only_update,$KUTx}" >> myconf
 echo "{key_read_update.* {key_read_update,$KTx}" >> myconf
 echo "{part_to_access.* {part_to_access,$PartToAccess}" >> myconf
 ./lisiscripts/copy_to_all.sh clients myconf ~
+./lisiscripts/parallel_command.sh clients "cd basho_bench && ./lisiscripts/set_bench_param.sh"
 
 
 #./lisiscripts/set_bench_param.sh "{duration.*/{duration, $Duration}"

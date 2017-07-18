@@ -10,7 +10,7 @@ do
     arr=($f)
     arr1="${arr[0]}"
     arr2="${arr[1]}"
-    echo $arr1	
-    echo $arr2	
-    sed -i "s/$arr1/$arr2/" examples/$config
+    #echo $arr1	
+    #echo $arr2	
+    sed -i "s/$arr1/${arr2}./" examples/$config
 done

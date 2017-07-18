@@ -5,7 +5,7 @@ PartRate="125"
 ## The probability (divided by 1000) of a transaction to start in a particular partition.
 StartRate="125"
 Num="1 2 3"
-Distribution="uniform_int parato_int"
+Distribution="uniform_int pareto_int"
 
 for D in $Distribution
 do
