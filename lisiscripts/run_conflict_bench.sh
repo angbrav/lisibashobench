@@ -16,10 +16,10 @@ do
         ./lisiscripts/restart_new_clock.sh $Clock $IfPrecise 
         for num in $Num
         do
-            ./lisiscripts/conf_bench.sh 60 7 10 10000 $D 8 125 125 0 0 10 2 
+            ./lisiscripts/conf_bench.sh 60 7 10 10000 $D 8 125 125 0 0 5 2 
             ./lisiscripts/run_bench.sh
             ./lisiscripts/summary.sh
-            echo "$Clock $IfPrecise 60 7 10 10000 $D 8 125 125 0 0 10 2" > ./results/current/config
+            echo "$Clock $IfPrecise 60 7 10 10000 $D 8 125 125 0 0 5 2" > ./results/current/config
         done
     done
 
@@ -30,10 +30,10 @@ do
         ./lisiscripts/restart_new_clock.sh $Clock $IfPrecise 
         for num in $Num
         do
-            ./lisiscripts/conf_bench.sh 60 7 10 10000 $D 8 125 125 0 0 10 2 
+            ./lisiscripts/conf_bench.sh 60 7 10 10000 $D 8 125 125 0 0 5 2 
             ./lisiscripts/run_bench.sh
             ./lisiscripts/summary.sh
-            echo "$Clock $IfPrecise 60 7 10 10000 $D 8 125 125 0 0 10 2" > ./results/current/config
+            echo "$Clock $IfPrecise 60 7 10 10000 $D 8 125 125 0 0 5 2" > ./results/current/config
         done
     done
 done
